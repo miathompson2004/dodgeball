@@ -111,6 +111,10 @@ label.f{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
 .score input{width:4.5em;text-align:center}
 .gfoot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 h3.s{font-size:.95rem;margin:0 0 8px;font-weight:700}
+.ro .pair{margin-top:10px}
+.ro input[type=password]{background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:8px 11px;flex:1 1 180px}
+.ro .err{color:var(--loss);font-weight:600;margin-top:8px}
+.settings .btn{margin-top:12px}
 .pair{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pair input{flex:1 1 160px;width:auto}
 .gfoot.confirm{align-items:center;background:var(--chip);border-radius:8px;padding:10px 12px}
@@ -138,16 +142,13 @@ details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
 </head>
 <body>
 <div id="app"></div>
-<script type="application/json" id="state">{"team":"","minPlayers":6,"players":[{"id":"9wvxsr4f","name":"Mia Thompson","added":"2026-10-07"},{"id":"d2m83vx3","name":"Caydence Holowaty","added":"2026-10-07"},{"id":"6pcmmpjc","name":"Anna Gosselin","added":"2026-10-07"},{"id":"out6f278","name":"Briana Harrison","added":"2026-10-07"},{"id":"yf5eqyy4","name":"Brianna Mejia","added":"2026-10-07"},{"id":"3kcgurig","name":"Chloe Boutin","added":"2026-10-07"},{"id":"0ctypahi","name":"Danielle Gibson","added":"2026-10-07"},{"id":"8ck7himr","name":"Decklin Wychopen","added":"2026-10-07"},{"id":"yr4jceys","name":"Eli Masiowski","added":"2026-10-07"},{"id":"bypcmchi","name":"Ella Williamson","added":"2026-10-07"},{"id":"kb8bdzv2","name":"Ethan Esquirol","added":"2026-10-07"},{"id":"wzuw1wy4","name":"Gavin Chubb","added":"2026-10-07"},{"id":"2jedksz8","name":"Jenna Williams","added":"2026-10-07"},{"id":"oq3zpx4n","name":"Jillian Lemaire","added":"2026-10-07"},{"id":"0xogix7m","name":"Joralyn Kozlow","added":"2026-10-07"},{"id":"oi8demh5","name":"Kobe Chilagan","added":"2026-10-07"},{"id":"d4jxfo1e","name":"Lucas Guttormson","added":"2026-10-07"},{"id":"ag01m96c","name":"Manraj Loharia","added":"2026-10-07"},{"id":"5ja1feu8","name":"Nathan Schommer","added":"2026-10-07"},{"id":"x3vgksdr","name":"Tyler Payne","added":"2026-10-07"},{"id":"53ashvtm","name":"Tyler Scwartz","added":"2026-10-07"},{"id":"91qu6ffx","name":"Wasim Iqbal","added":"2026-10-07"}],"games":[{"id":"7syls39n","date":"2026-10-04","opponent":"Mohyla Monsters","result":"FW","us":"","them":"","present":["9wvxsr4f","6pcmmpjc","out6f278","d2m83vx3","2jedksz8","x3vgksdr","5ja1feu8","91qu6ffx"],"notes":""},{"id":"w4yyedet","date":"2026-10-07","opponent":"Purple Cobras","result":"L","us":"","them":"","present":["9wvxsr4f","d2m83vx3","2jedksz8","0xogix7m","53ashvtm","out6f278"],"notes":""},{"id":"o0l8vrad","date":"2026-09-20","opponent":"USask Residents 6","result":"FW","us":"","them":"","present":["9wvxsr4f","2jedksz8","0xogix7m","5ja1feu8","91qu6ffx","x3vgksdr"],"notes":""}]}</script>
 <script id="main">
 (function(){
-  var HEAD = '<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<title>Dodgeball team tracker</title>\n<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">\n';
-  var END = '</scr' + 'ipt>';
-  var LS_KEY = 'dodgeball-tracker-local';
+  var SB_URL = 'https://caujlcvyxcjegkgmxaev.supabase.co';
+  var SB_KEY = 'sb_publishable_HtbeCwB803Hx-HBQgWd9NQ_UEL_h2bA';
+  var PASS_KEY = 'dodgeball-tracker-pass';
   var UI_KEY = 'dodgeball-tracker-ui';
   var app = document.getElementById('app');
-  var CSS = document.getElementById('css').textContent;
-  var MAIN = document.getElementById('main').textContent;
 
   var RESULTS = [['W','Win'],['L','Loss'],['T','Tie'],['FW','They forfeited'],['FL','We forfeited']];
   var LABEL = {W:'Win',L:'Loss',T:'Tie',FW:'Win by forfeit',FL:'Loss by forfeit'};
@@ -162,15 +163,15 @@ details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
     s.games.forEach(function(g){ if (!Array.isArray(g.present)) g.present = []; });
     return s;
   }
-  var state;
-  try { state = normalize(JSON.parse(document.getElementById('state').textContent)); }
-  catch (e) { state = blank(); }
+  var state = blank(), loaded = false;
 
   var ui = {tab:'games', open:null};
   try { var su = sessionStorage.getItem(UI_KEY); if (su) Object.assign(ui, JSON.parse(su)); } catch (e) {}
   function keepUI(){ try { sessionStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} }
 
-  var artifact = null, mode = 'pending', readOnly = false, dirty = false, timer = null, statusText = '';
+  var pass = '';
+  try { pass = localStorage.getItem(PASS_KEY) || ''; } catch (e) {}
+  var readOnly = !pass, dirty = false, saving = false, timer = null, statusText = '', unlockMsg = '';
 
   function id(){ return Math.random().toString(36).slice(2, 10); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -212,39 +213,64 @@ details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
   }
 
   /* ---------- saving ---------- */
-  function buildDoc(){
-    var json = JSON.stringify(state).replace(/</g, '\\u003c');
-    return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' + HEAD +
-      '<style id="css">' + CSS + '</style>\n</head>\n<body>\n<div id="app"></div>\n' +
-      '<script type="application/json" id="state">' + json + END + '\n' +
-      '<script id="main">' + MAIN + END + '\n</body>\n</html>\n';
+  function api(path, body){
+    return fetch(SB_URL + '/rest/v1/' + path, {
+      method: body ? 'POST' : 'GET',
+      headers: {'apikey': SB_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  }
+  function fetchState(){
+    return Promise.all([api('team?select=*'), api('players?select=*'), api('games?select=*'), api('attendance?select=*')])
+      .then(function(res){
+        var t = res[0][0] || {}, byGame = {};
+        res[3].forEach(function(x){ (byGame[x.game_id] = byGame[x.game_id] || []).push(x.player_id); });
+        return normalize({
+          team: t.name || '',
+          minPlayers: t.min_players == null ? 6 : t.min_players,
+          players: res[1].map(function(p){ var o = {id:p.id, name:p.name, added:p.added || ''}; if (p.removed) o.removed = p.removed; return o; }),
+          games: res[2].map(function(g){ return {id:g.id, date:g.date || '', opponent:g.opponent || '', result:g.result || null,
+            us: g.us == null ? '' : g.us, them: g.them == null ? '' : g.them, notes: g.notes || '', present: byGame[g.id] || []}; })
+        });
+      });
+  }
+  function refresh(){
+    if (dirty || saving) return;
+    fetchState().then(function(fresh){
+      if (dirty || saving) return;
+      state = fresh; loaded = true;
+      if (statusText.indexOf('load') !== -1) setStatus('');
+      render();
+    }, function(){ setStatus('Couldn\u2019t load the latest data. Check your connection and refresh.'); render(); });
+  }
+  function lock(msg){
+    pass = ''; readOnly = true; unlockMsg = msg || '';
+    try { localStorage.removeItem(PASS_KEY); } catch (e) {}
+    render();
   }
   function setStatus(t){ statusText = t; var el = document.getElementById('status'); if (el) el.textContent = t; }
   function change(){
-    if (readOnly) return;
+    if (readOnly || !loaded) return;
     dirty = true;
     setStatus('Unsaved changes');
     clearTimeout(timer);
     timer = setTimeout(save, 1400);
     render();
   }
-  function save(retried){
-    if (!dirty || mode === 'pending') return;
-    if (mode === 'local'){
-      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); setStatus('Saved in this browser'); }
-      catch (e) { setStatus('Couldn\u2019t save in this browser'); }
-      dirty = false; return;
-    }
+  function save(){
+    if (!dirty || saving || readOnly || !loaded) return;
+    saving = true; dirty = false;
     setStatus('Saving\u2026');
-    keepUI();
-    dirty = false;
-    artifact.publish(buildDoc()).then(function(){ setStatus('Saved'); }).catch(function(err){
-      var code = err && err.code;
-      if (code === 'not_writer' || code === 'not_granted'){ readOnly = true; setStatus(''); render(); }
-      else if (code === 'conflict'){ setStatus('Someone else just saved. Loading their version\u2026'); }
-      else if (code === 'rate_limited'){ dirty = true; setStatus('Saving slowed down. Retrying shortly\u2026'); timer = setTimeout(save, 8000); }
-      else if (code === 'upstream_error' && !retried){ dirty = true; setTimeout(function(){ save(true); }, 1500 + Math.random()*1500); }
-      else { dirty = true; setStatus('Couldn\u2019t save. Your next change will try again.'); }
+    api('rpc/save_tracker', {p_pass: pass, p_state: state}).then(function(r){
+      saving = false;
+      if (r === 'ok'){ if (dirty) save(); else setStatus('Saved'); return; }
+      dirty = true;
+      if (r === 'locked') setStatus('Too many wrong passcodes. Saving is paused for 15 minutes.');
+      else { setStatus('Not saved'); lock('The team passcode changed. Enter the new one to save your changes.'); }
+    }, function(){
+      saving = false; dirty = true;
+      setStatus('Couldn\u2019t save. Retrying\u2026');
+      clearTimeout(timer); timer = setTimeout(save, 5000);
     });
   }
 
@@ -268,7 +294,11 @@ details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
         (s.form.length ? '<div>Last ' + s.form.length + ' <span class="form">' + s.form.map(function(r){ return '<i class="' + r + '">' + r + '</i>'; }).join('') + '</span></div>' : '') +
       '</div></header>';
 
-    if (readOnly) html += '<div class="ro">You\u2019re viewing this tracker. Only people with edit access can record games and attendance.</div>';
+    if (!loaded){ app.innerHTML = html + '<div class="empty">' + esc(statusText || 'Loading the team\u2026') + '</div></div>'; return; }
+    if (readOnly) html += '<div class="ro">You\u2019re viewing the team record. Enter the team passcode to record games and attendance.' +
+      '<div class="pair"><input type="password" id="pass-in" autocomplete="current-password" placeholder="Team passcode" aria-label="Team passcode">' +
+      '<button class="btn small" data-act="unlock">Start editing</button></div>' +
+      (unlockMsg ? '<div class="err" role="alert">' + esc(unlockMsg) + '</div>' : '') + '</div>';
 
     html += '<div class="tabs" role="tablist">' +
       tab('games','Games (' + state.games.length + ')') + tab('players','Players (' + state.players.filter(function(p){return !p.removed;}).length + ')') + '</div>';
@@ -370,7 +400,8 @@ details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
     h += '<section class="settings"><h3 class="s">Team settings</h3><div class="row">' +
       '<div><label class="f" for="set-team">Team name</label><input type="text" id="set-team" data-setting="team" value="' + esc(state.team) + '" placeholder="Your team"' + (readOnly ? ' disabled' : '') + '></div>' +
       '<div><label class="f" for="set-min">Minimum players to avoid a forfeit</label><input type="number" min="0" id="set-min" data-setting="minPlayers" value="' + esc(state.minPlayers) + '"' + (readOnly ? ' disabled' : '') + '></div>' +
-      '</div><p class="pstat">Games where fewer people showed than this are flagged as short-handed. Set it to 0 to turn that off.</p></section>';
+      '</div><p class="pstat">Games where fewer people showed than this are flagged as short-handed. Set it to 0 to turn that off.</p>' +
+      (readOnly ? '' : '<button class="btn ghost small" data-act="lock-device">Stop editing on this device</button>') + '</section>';
     return h;
   }
   function rows(list, former){
@@ -395,6 +426,16 @@ details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
     var b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
     var act = b.dataset.act, g = b.dataset.id ? game(b.dataset.id) : null;
     switch (act){
+      case 'unlock': {
+        var pv = ((document.getElementById('pass-in') || {}).value || '').trim(); if (!pv) return;
+        unlockMsg = 'Checking\u2026'; render();
+        api('rpc/check_passcode', {p_pass: pv}).then(function(r){
+          if (r === 'ok'){ pass = pv; try { localStorage.setItem(PASS_KEY, pv); } catch (e) {} readOnly = false; unlockMsg = ''; render(); if (dirty) save(); }
+          else if (r === 'locked'){ unlockMsg = 'Too many wrong tries. Wait 15 minutes, then try again.'; render(); }
+          else { unlockMsg = 'That passcode isn\u2019t right.'; render(); }
+        }, function(){ unlockMsg = 'Couldn\u2019t check the passcode. Check your connection.'; render(); });
+        return; }
+      case 'lock-device': lock(''); return;
       case 'tab': ui.tab = b.dataset.tab; keepUI(); render(); return;
       case 'toggle': ui.open = ui.open === b.dataset.id ? null : b.dataset.id; keepUI(); render(); return;
       case 'rename-team': {
@@ -457,22 +498,15 @@ details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
     if (e.key !== 'Enter') return;
     if (e.target.id === 'new-player'){ e.preventDefault(); app.querySelector('[data-act="add-player"]').click(); }
     if (e.target.id === 'new-opp'){ e.preventDefault(); app.querySelector('[data-act="add-game"]').click(); }
+    if (e.target.id === 'pass-in'){ e.preventDefault(); app.querySelector('[data-act="unlock"]').click(); }
     if (e.target.dataset && e.target.dataset.rename){ e.preventDefault(); app.querySelector('[data-act="save-rename"]').click(); }
   });
 
   /* ---------- start ---------- */
   render();
-  function useLocal(){
-    mode = 'local';
-    try { var saved = localStorage.getItem(LS_KEY); if (saved) state = normalize(JSON.parse(saved)); } catch (e) {}
-    render(); if (dirty) save();
-  }
-  if (window.claude && typeof window.claude.use === 'function'){
-    window.claude.use('artifact').then(function(a){
-      if (!a) return useLocal();
-      artifact = a; mode = 'artifact'; if (dirty) save();
-    }, useLocal);
-  } else useLocal();
+  refresh();
+  document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') refresh(); });
+  window.addEventListener('beforeunload', function(e){ if (dirty || saving){ e.preventDefault(); e.returnValue = ''; } });
 })();
 </script>
 </body>
