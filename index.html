@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dodgeball team tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style id="css">
+:root{
+  --bg:#E4EAEF; --surface:#F8FAFB; --ink:#14213D; --muted:#566278; --line:#C6CFD9;
+  --ball:#D33A2C; --court:#E3AC12; --win:#1E7A4C; --loss:#B3261E; --chip:#E9EEF2;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1726; --surface:#172238; --ink:#EDF1F6; --muted:#9BA7BA; --line:#2A3853;
+    --ball:#F25A4D; --court:#F2C230; --win:#4CC38A; --loss:#FF7B70; --chip:#1F2C46;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1726; --surface:#172238; --ink:#EDF1F6; --muted:#9BA7BA; --line:#2A3853;
+  --ball:#F25A4D; --court:#F2C230; --win:#4CC38A; --loss:#FF7B70; --chip:#1F2C46;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--court);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding:0 18px 64px}
+
+/* Scoreboard */
+.board{padding:28px 0 22px;border-bottom:4px solid var(--court);margin-bottom:18px}
+.teamrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.team{font-stretch:125%;font-weight:800;font-size:clamp(1.5rem,5vw,2.1rem);line-height:1.1;margin:0;
+  background:none;border:0;padding:0;text-align:left;cursor:pointer}
+.team:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.status{font-size:.85rem;color:var(--muted);min-height:1.2em}
+.record{display:flex;align-items:flex-end;gap:clamp(10px,3vw,22px);margin-top:14px;flex-wrap:wrap}
+.tally{display:flex;flex-direction:column;align-items:flex-start}
+.tally b{font-stretch:62%;font-weight:900;font-size:clamp(4rem,17vw,7.5rem);line-height:.85;font-variant-numeric:tabular-nums}
+.tally span{font-size:.9rem;color:var(--muted);margin-top:6px}
+.tally.w b{color:var(--win)} .tally.l b{color:var(--loss)}
+.dash{width:clamp(14px,3vw,26px);height:8px;background:var(--court);border-radius:2px;margin-bottom:2.6rem}
+.facts{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:16px;font-size:.92rem;color:var(--muted)}
+.facts strong{color:var(--ink);font-weight:700}
+.form{display:inline-flex;gap:4px;vertical-align:middle}
+.form i{font-style:normal;width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;
+  font-size:.7rem;font-weight:800;color:#fff}
+.form .W{background:var(--win)} .form .L{background:var(--loss)} .form .T{background:var(--muted)}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+.tab{background:none;border:0;padding:10px 14px;font-weight:700;color:var(--muted);cursor:pointer;
+  border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ball)}
+
+.ro{background:var(--chip);border-left:4px solid var(--court);padding:10px 14px;margin-bottom:16px;font-size:.92rem}
+
+/* Buttons & inputs */
+.btn{border:1.5px solid var(--ink);background:var(--ink);color:var(--surface);border-radius:999px;
+  padding:9px 18px;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.small{padding:6px 12px;font-size:.88rem}
+.btn.danger{background:transparent;color:var(--loss);border-color:var(--loss)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=date],input[type=number],textarea{
+  background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+textarea{min-height:64px;resize:vertical}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row > *{flex:1 1 160px}
+.addbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.addbar input{flex:1 1 200px}
+
+/* Games */
+.games{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.game{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.game.open{border-color:var(--ink)}
+.gsum{display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:center;width:100%;
+  padding:14px 16px;background:none;border:0;text-align:left;cursor:pointer}
+.gdate{font-stretch:75%;font-weight:800;font-size:1.05rem;min-width:4.2em}
+.gopp{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gmeta{grid-column:2/4;font-size:.85rem;color:var(--muted)}
+.badge{font-size:.8rem;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.b-W,.b-FW{background:var(--win);color:#fff}
+.b-L,.b-FL{background:var(--loss);color:#fff}
+.b-T{background:var(--muted);color:#fff}
+.b-none{background:var(--chip);color:var(--muted)}
+.short{color:var(--loss);font-weight:700}
+.gbody{padding:4px 16px 18px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:16px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;
+  cursor:pointer;font-weight:600;font-size:.9rem}
+.seg button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--surface)}
+.seg button.r-W[aria-pressed="true"],.seg button.r-FW[aria-pressed="true"]{background:var(--win);border-color:var(--win);color:#fff}
+.seg button.r-L[aria-pressed="true"],.seg button.r-FL[aria-pressed="true"]{background:var(--loss);border-color:var(--loss);color:#fff}
+.att-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--chip);border-radius:999px;padding:7px 14px 7px 10px;
+  cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.chip::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ball);border-color:var(--ball);color:#fff}
+.chip[aria-pressed="true"]::before{background:#fff;border-color:#fff}
+.score{display:flex;align-items:center;gap:8px}
+.score input{width:4.5em;text-align:center}
+.gfoot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h3.s{font-size:.95rem;margin:0 0 8px;font-weight:700}
+.pair{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pair input{flex:1 1 160px;width:auto}
+.gfoot.confirm{align-items:center;background:var(--chip);border-radius:8px;padding:10px 12px}
+.btn.danger.solid{background:var(--loss);color:#fff}
+
+/* Players */
+.players{list-style:none;margin:0;padding:0}
+.player{display:grid;grid-template-columns:1fr auto;gap:6px 14px;padding:14px 0;border-bottom:1px solid var(--line);align-items:center}
+.pname{font-weight:700}
+.pstat{font-size:.88rem;color:var(--muted)}
+.pct{font-stretch:62%;font-weight:900;font-size:2rem;line-height:1;text-align:right;font-variant-numeric:tabular-nums}
+.bar{grid-column:1/3;height:8px;background:var(--chip);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ball)}
+.pactions{grid-column:1/3;display:flex;gap:8px}
+.pactions button{background:none;border:0;color:var(--muted);font-size:.85rem;padding:2px 0;cursor:pointer;text-decoration:underline}
+details.more{margin-top:24px}
+details.more summary{cursor:pointer;font-weight:700;color:var(--muted)}
+.settings{margin-top:28px;padding-top:18px;border-top:4px solid var(--court)}
+.empty{padding:28px 18px;text-align:center;color:var(--muted);background:var(--surface);border:1.5px dashed var(--line);border-radius:12px}
+.empty strong{display:block;color:var(--ink);font-size:1.05rem;margin-bottom:4px}
+@media (prefers-reduced-motion: no-preference){
+  .chip,.seg button{transition:background-color .12s,border-color .12s}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="application/json" id="state">{"team":"","minPlayers":6,"players":[{"id":"9wvxsr4f","name":"Mia Thompson","added":"2026-10-07"},{"id":"d2m83vx3","name":"Caydence Holowaty","added":"2026-10-07"},{"id":"6pcmmpjc","name":"Anna Gosselin","added":"2026-10-07"},{"id":"out6f278","name":"Briana Harrison","added":"2026-10-07"},{"id":"yf5eqyy4","name":"Brianna Mejia","added":"2026-10-07"},{"id":"3kcgurig","name":"Chloe Boutin","added":"2026-10-07"},{"id":"0ctypahi","name":"Danielle Gibson","added":"2026-10-07"},{"id":"8ck7himr","name":"Decklin Wychopen","added":"2026-10-07"},{"id":"yr4jceys","name":"Eli Masiowski","added":"2026-10-07"},{"id":"bypcmchi","name":"Ella Williamson","added":"2026-10-07"},{"id":"kb8bdzv2","name":"Ethan Esquirol","added":"2026-10-07"},{"id":"wzuw1wy4","name":"Gavin Chubb","added":"2026-10-07"},{"id":"2jedksz8","name":"Jenna Williams","added":"2026-10-07"},{"id":"oq3zpx4n","name":"Jillian Lemaire","added":"2026-10-07"},{"id":"0xogix7m","name":"Joralyn Kozlow","added":"2026-10-07"},{"id":"oi8demh5","name":"Kobe Chilagan","added":"2026-10-07"},{"id":"d4jxfo1e","name":"Lucas Guttormson","added":"2026-10-07"},{"id":"ag01m96c","name":"Manraj Loharia","added":"2026-10-07"},{"id":"5ja1feu8","name":"Nathan Schommer","added":"2026-10-07"},{"id":"x3vgksdr","name":"Tyler Payne","added":"2026-10-07"},{"id":"53ashvtm","name":"Tyler Scwartz","added":"2026-10-07"},{"id":"91qu6ffx","name":"Wasim Iqbal","added":"2026-10-07"}],"games":[{"id":"7syls39n","date":"2026-10-04","opponent":"Mohyla Monsters","result":"FW","us":"","them":"","present":["9wvxsr4f","6pcmmpjc","out6f278","d2m83vx3","2jedksz8","x3vgksdr","5ja1feu8","91qu6ffx"],"notes":""},{"id":"w4yyedet","date":"2026-10-07","opponent":"Purple Cobras","result":"L","us":"","them":"","present":["9wvxsr4f","d2m83vx3","2jedksz8","0xogix7m","53ashvtm","out6f278"],"notes":""},{"id":"o0l8vrad","date":"2026-09-20","opponent":"USask Residents 6","result":"FW","us":"","them":"","present":["9wvxsr4f","2jedksz8","0xogix7m","5ja1feu8","91qu6ffx","x3vgksdr"],"notes":""}]}</script>
+<script id="main">
+(function(){
+  var HEAD = '<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<title>Dodgeball team tracker</title>\n<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">\n';
+  var END = '</scr' + 'ipt>';
+  var LS_KEY = 'dodgeball-tracker-local';
+  var UI_KEY = 'dodgeball-tracker-ui';
+  var app = document.getElementById('app');
+  var CSS = document.getElementById('css').textContent;
+  var MAIN = document.getElementById('main').textContent;
+
+  var RESULTS = [['W','Win'],['L','Loss'],['T','Tie'],['FW','They forfeited'],['FL','We forfeited']];
+  var LABEL = {W:'Win',L:'Loss',T:'Tie',FW:'Win by forfeit',FL:'Loss by forfeit'};
+
+  function blank(){ return {team:'',minPlayers:6,players:[],games:[]}; }
+  function normalize(s){
+    s = s && typeof s === 'object' ? s : blank();
+    if (typeof s.team !== 'string') s.team = '';
+    s.minPlayers = Math.max(0, parseInt(s.minPlayers, 10) || 0);
+    s.players = Array.isArray(s.players) ? s.players : [];
+    s.games = Array.isArray(s.games) ? s.games : [];
+    s.games.forEach(function(g){ if (!Array.isArray(g.present)) g.present = []; });
+    return s;
+  }
+  var state;
+  try { state = normalize(JSON.parse(document.getElementById('state').textContent)); }
+  catch (e) { state = blank(); }
+
+  var ui = {tab:'games', open:null};
+  try { var su = sessionStorage.getItem(UI_KEY); if (su) Object.assign(ui, JSON.parse(su)); } catch (e) {}
+  function keepUI(){ try { sessionStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} }
+
+  var artifact = null, mode = 'pending', readOnly = false, dirty = false, timer = null, statusText = '';
+
+  function id(){ return Math.random().toString(36).slice(2, 10); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function today(){ var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+  function fmtDate(d){ if (!d) return 'No date';
+    try { return new Date(d + 'T00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); } catch (e) { return d; } }
+  function player(pid){ return state.players.find(function(p){ return p.id === pid; }); }
+  function sortedGames(){ return state.games.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }); }
+
+  /* ---------- stats ---------- */
+  function teamStats(){
+    var s = {W:0,L:0,T:0,FW:0,FL:0,played:0,turnout:0,short:0};
+    state.games.forEach(function(g){
+      if (!g.result) return;
+      s.played++;
+      if (g.result === 'W' || g.result === 'FW') s.W++;
+      if (g.result === 'L' || g.result === 'FL') s.L++;
+      if (g.result === 'T') s.T++;
+      if (g.result === 'FW') s.FW++;
+      if (g.result === 'FL') s.FL++;
+      s.turnout += g.present.length;
+      if (state.minPlayers && g.present.length < state.minPlayers && g.result !== 'FW') s.short++;
+    });
+    s.avg = s.played ? (s.turnout / s.played) : 0;
+    s.form = state.games.filter(function(g){ return g.result; })
+      .sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }).slice(0,5)
+      .map(function(g){ return g.result === 'FW' ? 'W' : g.result === 'FL' ? 'L' : g.result; });
+    return s;
+  }
+  function playerStats(p){
+    var counted = 0, came = 0;
+    state.games.forEach(function(g){
+      if (!g.result) return;
+      counted++;
+      if (g.present.indexOf(p.id) !== -1) came++;
+    });
+    return {counted:counted, came:came, pct: counted ? Math.round(came / counted * 100) : null};
+  }
+
+  /* ---------- saving ---------- */
+  function buildDoc(){
+    var json = JSON.stringify(state).replace(/</g, '\\u003c');
+    return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' + HEAD +
+      '<style id="css">' + CSS + '</style>\n</head>\n<body>\n<div id="app"></div>\n' +
+      '<script type="application/json" id="state">' + json + END + '\n' +
+      '<script id="main">' + MAIN + END + '\n</body>\n</html>\n';
+  }
+  function setStatus(t){ statusText = t; var el = document.getElementById('status'); if (el) el.textContent = t; }
+  function change(){
+    if (readOnly) return;
+    dirty = true;
+    setStatus('Unsaved changes');
+    clearTimeout(timer);
+    timer = setTimeout(save, 1400);
+    render();
+  }
+  function save(retried){
+    if (!dirty || mode === 'pending') return;
+    if (mode === 'local'){
+      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); setStatus('Saved in this browser'); }
+      catch (e) { setStatus('Couldn\u2019t save in this browser'); }
+      dirty = false; return;
+    }
+    setStatus('Saving\u2026');
+    keepUI();
+    dirty = false;
+    artifact.publish(buildDoc()).then(function(){ setStatus('Saved'); }).catch(function(err){
+      var code = err && err.code;
+      if (code === 'not_writer' || code === 'not_granted'){ readOnly = true; setStatus(''); render(); }
+      else if (code === 'conflict'){ setStatus('Someone else just saved. Loading their version\u2026'); }
+      else if (code === 'rate_limited'){ dirty = true; setStatus('Saving slowed down. Retrying shortly\u2026'); timer = setTimeout(save, 8000); }
+      else if (code === 'upstream_error' && !retried){ dirty = true; setTimeout(function(){ save(true); }, 1500 + Math.random()*1500); }
+      else { dirty = true; setStatus('Couldn\u2019t save. Your next change will try again.'); }
+    });
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    var s = teamStats();
+    var focusId = document.activeElement && document.activeElement.id;
+    var html = '<div class="wrap">';
+    html += '<header class="board"><div class="teamrow">' +
+      '<button class="team" data-act="rename-team" ' + (readOnly ? 'disabled' : '') + ' title="Rename team">' +
+        esc(state.team || 'Your team') + '</button>' +
+      '<div class="status" id="status" role="status">' + esc(statusText) + '</div></div>' +
+      '<div class="record" aria-label="Record: ' + s.W + ' wins, ' + s.L + ' losses, ' + s.T + ' ties">' +
+        '<div class="tally w"><b>' + s.W + '</b><span>Wins</span></div><div class="dash"></div>' +
+        '<div class="tally l"><b>' + s.L + '</b><span>Losses</span></div>' +
+        (s.T ? '<div class="dash"></div><div class="tally"><b>' + s.T + '</b><span>Ties</span></div>' : '') +
+      '</div><div class="facts">' +
+        '<div><strong>' + s.FW + '</strong> won by forfeit, <strong>' + s.FL + '</strong> lost by forfeit</div>' +
+        '<div>Average turnout <strong>' + (s.played ? s.avg.toFixed(1) : '\u2013') + '</strong></div>' +
+        (state.minPlayers ? '<div>Short-handed <strong>' + s.short + '</strong> ' + (s.short === 1 ? 'time' : 'times') + '</div>' : '') +
+        (s.form.length ? '<div>Last ' + s.form.length + ' <span class="form">' + s.form.map(function(r){ return '<i class="' + r + '">' + r + '</i>'; }).join('') + '</span></div>' : '') +
+      '</div></header>';
+
+    if (readOnly) html += '<div class="ro">You\u2019re viewing this tracker. Only people with edit access can record games and attendance.</div>';
+
+    html += '<div class="tabs" role="tablist">' +
+      tab('games','Games (' + state.games.length + ')') + tab('players','Players (' + state.players.filter(function(p){return !p.removed;}).length + ')') + '</div>';
+    html += ui.tab === 'players' ? renderPlayers() : renderGames();
+    html += '</div>';
+    app.innerHTML = html;
+    if (focusId){ var el = document.getElementById(focusId); if (el) el.focus(); }
+  }
+  function tab(key, label){
+    return '<button class="tab" role="tab" data-act="tab" data-tab="' + key + '" aria-selected="' + (ui.tab === key) + '">' + esc(label) + '</button>';
+  }
+
+  function renderGames(){
+    var h = '';
+    if (!readOnly){
+      h += '<div class="addbar"><input type="text" id="new-opp" placeholder="Opponent team name" aria-label="Opponent team name">' +
+        '<button class="btn" data-act="add-game">Add game</button></div>';
+    }
+    if (!state.games.length){
+      return h + '<div class="empty"><strong>No games yet</strong>' +
+        (state.players.length ? 'Add your first game above, then tap players to mark who showed up.' :
+          'Start by adding your roster in Players, then log each game here.') + '</div>';
+    }
+    var active = state.players.filter(function(p){ return !p.removed; });
+    h += '<ul class="games">';
+    sortedGames().forEach(function(g){
+      var open = ui.open === g.id;
+      var r = g.result || 'none';
+      var shortH = state.minPlayers && g.result && g.result !== 'FW' && g.present.length < state.minPlayers;
+      var score = (g.us !== '' && g.us != null && g.them !== '' && g.them != null) ? ' (' + g.us + '\u2013' + g.them + ')' : '';
+      h += '<li class="game' + (open ? ' open' : '') + '">' +
+        '<button class="gsum" data-act="toggle" data-id="' + g.id + '" aria-expanded="' + open + '">' +
+          '<span class="gdate">' + esc(fmtDate(g.date)) + '</span>' +
+          '<span class="gopp">vs ' + esc(g.opponent || 'Unnamed opponent') + '</span>' +
+          '<span class="badge b-' + r + '">' + (g.result ? LABEL[g.result] + score : 'Not played') + '</span>' +
+          '<span class="gmeta">' + g.present.length + ' showed up' +
+            (shortH ? ' <span class="short">\u2022 short ' + (state.minPlayers - g.present.length) + '</span>' : '') + '</span>' +
+        '</button>';
+      if (open) h += renderGameBody(g, active);
+      h += '</li>';
+    });
+    return h + '</ul>';
+  }
+
+  function renderGameBody(g, active){
+    var dis = readOnly ? ' disabled' : '';
+    var roster = active.slice();
+    g.present.forEach(function(pid){ var p = player(pid); if (p && p.removed) roster.push(p); });
+    var h = '<div class="gbody">';
+    h += '<div class="row"><div><label class="f" for="d-' + g.id + '">Date</label>' +
+      '<input type="date" id="d-' + g.id + '" data-field="date" data-id="' + g.id + '" value="' + esc(g.date) + '"' + dis + '></div>' +
+      '<div><label class="f" for="o-' + g.id + '">Opponent</label>' +
+      '<input type="text" id="o-' + g.id + '" data-field="opponent" data-id="' + g.id + '" value="' + esc(g.opponent) + '"' + dis + '></div></div>';
+    h += '<div><h3 class="s">Result</h3><div class="seg" role="group" aria-label="Result">';
+    RESULTS.forEach(function(r){
+      h += '<button class="r-' + r[0] + '" data-act="result" data-id="' + g.id + '" data-r="' + r[0] + '" aria-pressed="' + (g.result === r[0]) + '"' + dis + '>' + r[1] + '</button>';
+    });
+    h += '<button data-act="result" data-id="' + g.id + '" data-r="" aria-pressed="' + (!g.result) + '"' + dis + '>Not played yet</button></div></div>';
+    if (g.result === 'W' || g.result === 'L' || g.result === 'T'){
+      h += '<div><h3 class="s">Games won in the match (optional)</h3><div class="score">' +
+        '<input type="number" min="0" id="us-' + g.id + '" aria-label="Us" placeholder="Us" data-field="us" data-id="' + g.id + '" value="' + esc(g.us) + '"' + dis + '>' +
+        '<span>to</span><input type="number" min="0" id="th-' + g.id + '" aria-label="Them" placeholder="Them" data-field="them" data-id="' + g.id + '" value="' + esc(g.them) + '"' + dis + '></div></div>';
+    }
+    h += '<div><div class="att-head"><h3 class="s">Who showed up \u2014 ' + g.present.length + ' of ' + roster.length + '</h3>' +
+      (readOnly || !roster.length ? '' : '<button class="btn ghost small" data-act="all" data-id="' + g.id + '">' +
+        (g.present.length === roster.length ? 'Clear all' : 'Everyone came') + '</button>') + '</div>';
+    if (!roster.length) h += '<p class="pstat">Add players in the Players tab to take attendance.</p>';
+    else {
+      h += '<div class="chips">';
+      roster.forEach(function(p){
+        h += '<button class="chip" data-act="att" data-id="' + g.id + '" data-p="' + p.id + '" aria-pressed="' + (g.present.indexOf(p.id) !== -1) + '"' + dis + '>' + esc(p.name) + '</button>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+    h += '<div><label class="f" for="n-' + g.id + '">Notes</label><textarea id="n-' + g.id + '" data-field="notes" data-id="' + g.id + '"' + dis + ' placeholder="Ref issues, who caught what, gym changes\u2026">' + esc(g.notes) + '</textarea></div>';
+    if (!readOnly && ui.confirmDel === g.id) h += '<div class="gfoot confirm"><span>Delete this game? Its result and attendance will be gone.</span>' +
+      '<span class="pair"><button class="btn ghost small" data-act="cancel-del" data-id="' + g.id + '">Keep it</button>' +
+      '<button class="btn danger solid small" data-act="confirm-del" data-id="' + g.id + '">Yes, delete</button></span></div>';
+    else if (!readOnly) h += '<div class="gfoot"><button class="btn ghost small" data-act="toggle" data-id="' + g.id + '">Done</button>' +
+      '<button class="btn danger small" data-act="del-game" data-id="' + g.id + '">Delete game</button></div>';
+    return h + '</div>';
+  }
+
+  function renderPlayers(){
+    var h = '';
+    if (!readOnly){
+      h += '<div class="addbar"><input type="text" id="new-player" placeholder="Player name" aria-label="Player name">' +
+        '<button class="btn" data-act="add-player">Add player</button></div>';
+    }
+    var active = state.players.filter(function(p){ return !p.removed; });
+    var gone = state.players.filter(function(p){ return p.removed; });
+    if (!active.length && !gone.length){
+      h += '<div class="empty"><strong>No players yet</strong>Add everyone on your roster to start tracking who shows up.</div>';
+    } else {
+      h += '<ul class="players">' + rows(active, false) + '</ul>';
+      if (gone.length) h += '<details class="more"><summary>Former players (' + gone.length + ')</summary><ul class="players">' + rows(gone, true) + '</ul></details>';
+    }
+    h += '<section class="settings"><h3 class="s">Team settings</h3><div class="row">' +
+      '<div><label class="f" for="set-team">Team name</label><input type="text" id="set-team" data-setting="team" value="' + esc(state.team) + '" placeholder="Your team"' + (readOnly ? ' disabled' : '') + '></div>' +
+      '<div><label class="f" for="set-min">Minimum players to avoid a forfeit</label><input type="number" min="0" id="set-min" data-setting="minPlayers" value="' + esc(state.minPlayers) + '"' + (readOnly ? ' disabled' : '') + '></div>' +
+      '</div><p class="pstat">Games where fewer people showed than this are flagged as short-handed. Set it to 0 to turn that off.</p></section>';
+    return h;
+  }
+  function rows(list, former){
+    return list.map(function(p){ return { p:p, s:playerStats(p) }; })
+      .sort(function(a,b){ return (b.s.pct == null ? -1 : b.s.pct) - (a.s.pct == null ? -1 : a.s.pct) || a.p.name.localeCompare(b.p.name); })
+      .map(function(x){
+        var p = x.p, s = x.s;
+        var line = s.counted ? 'Came to ' + s.came + ' of ' + s.counted + ' games' : 'No games played yet';
+        return '<li class="player"><div>' + (ui.editPlayer === p.id ? '<div class="pair"><input type="text" id="rn-' + p.id + '" data-rename="' + p.id + '" value="' + esc(p.name) + '" aria-label="New name"><button class="btn small" data-act="save-rename" data-p="' + p.id + '">Save</button><button class="btn ghost small" data-act="cancel-rename">Cancel</button></div>' : '<div class="pname">' + esc(p.name) + '</div>') + '<div class="pstat">' + line + '</div></div>' +
+          '<div class="pct">' + (s.pct == null ? '\u2013' : s.pct + '%') + '</div>' +
+          '<div class="bar" aria-hidden="true"><i style="width:' + (s.pct || 0) + '%"></i></div>' +
+          (readOnly ? '' : '<div class="pactions"><button data-act="rename-player" data-p="' + p.id + '">Rename</button>' +
+            (former ? '<button data-act="restore-player" data-p="' + p.id + '">Back on the roster</button>'
+                    : '<button data-act="remove-player" data-p="' + p.id + '">Left the team</button>') + '</div>') +
+          '</li>';
+      }).join('');
+  }
+
+  /* ---------- events ---------- */
+  function game(gid){ return state.games.find(function(g){ return g.id === gid; }); }
+  app.addEventListener('click', function(e){
+    var b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+    var act = b.dataset.act, g = b.dataset.id ? game(b.dataset.id) : null;
+    switch (act){
+      case 'tab': ui.tab = b.dataset.tab; keepUI(); render(); return;
+      case 'toggle': ui.open = ui.open === b.dataset.id ? null : b.dataset.id; keepUI(); render(); return;
+      case 'rename-team': {
+        ui.tab = 'players'; keepUI(); render();
+        var st = document.getElementById('set-team'); if (st){ st.scrollIntoView({block:'center'}); st.focus(); st.select(); }
+        return; }
+      case 'add-game': {
+        var inp = document.getElementById('new-opp');
+        var ng = {id:id(), date:today(), opponent:(inp.value || '').trim(), result:null, us:'', them:'', present:[], notes:''};
+        state.games.push(ng); ui.open = ng.id; keepUI(); change(); return; }
+      case 'result': if (!g) return; g.result = b.dataset.r || null;
+        if (!(g.result === 'W' || g.result === 'L' || g.result === 'T')){ g.us = ''; g.them = ''; }
+        change(); return;
+      case 'att': if (!g) return; {
+        var i = g.present.indexOf(b.dataset.p);
+        if (i === -1) g.present.push(b.dataset.p); else g.present.splice(i, 1);
+        change(); return; }
+      case 'all': if (!g) return; {
+        var roster = state.players.filter(function(p){ return !p.removed; }).map(function(p){ return p.id; });
+        g.present.forEach(function(pid){ if (roster.indexOf(pid) === -1) roster.push(pid); });
+        g.present = g.present.length === roster.length ? [] : roster;
+        change(); return; }
+      case 'del-game': if (!g) return; ui.confirmDel = g.id; render(); return;
+      case 'cancel-del': ui.confirmDel = null; render(); return;
+      case 'confirm-del': if (!g) return;
+        state.games = state.games.filter(function(x){ return x !== g; }); ui.open = null; ui.confirmDel = null; keepUI(); change(); return;
+      case 'add-player': {
+        var pi = document.getElementById('new-player'); var name = (pi.value || '').trim();
+        if (!name){ pi.focus(); return; }
+        state.players.push({id:id(), name:name, added:today()}); change();
+        var again = document.getElementById('new-player'); if (again){ again.value = ''; again.focus(); }
+        return; }
+      case 'rename-player': ui.editPlayer = b.dataset.p; render();
+        var ri = document.getElementById('rn-' + b.dataset.p); if (ri){ ri.focus(); ri.select(); } return;
+      case 'cancel-rename': ui.editPlayer = null; render(); return;
+      case 'save-rename': { var p = player(b.dataset.p); if (!p) return;
+        var rv = (document.getElementById('rn-' + p.id) || {}).value || '';
+        if (rv.trim()) p.name = rv.trim(); ui.editPlayer = null; change(); return; }
+      case 'remove-player': { var rp = player(b.dataset.p); if (!rp) return;
+        rp.removed = today(); change(); return; }
+      case 'restore-player': { var sp = player(b.dataset.p); if (!sp) return;
+        delete sp.removed; change(); return; }
+    }
+  });
+  app.addEventListener('change', function(e){
+    var t = e.target;
+    if (t.dataset.field){
+      var g = game(t.dataset.id); if (!g) return;
+      var v = t.value;
+      if (t.dataset.field === 'us' || t.dataset.field === 'them') v = v === '' ? '' : Math.max(0, parseInt(v, 10) || 0);
+      else if (t.dataset.field !== 'date') v = v.trim();
+      g[t.dataset.field] = v; change();
+    } else if (t.dataset.setting){
+      if (t.dataset.setting === 'minPlayers') state.minPlayers = Math.max(0, parseInt(t.value, 10) || 0);
+      else state.team = t.value.trim();
+      change();
+    }
+  });
+  app.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter') return;
+    if (e.target.id === 'new-player'){ e.preventDefault(); app.querySelector('[data-act="add-player"]').click(); }
+    if (e.target.id === 'new-opp'){ e.preventDefault(); app.querySelector('[data-act="add-game"]').click(); }
+    if (e.target.dataset && e.target.dataset.rename){ e.preventDefault(); app.querySelector('[data-act="save-rename"]').click(); }
+  });
+
+  /* ---------- start ---------- */
+  render();
+  function useLocal(){
+    mode = 'local';
+    try { var saved = localStorage.getItem(LS_KEY); if (saved) state = normalize(JSON.parse(saved)); } catch (e) {}
+    render(); if (dirty) save();
+  }
+  if (window.claude && typeof window.claude.use === 'function'){
+    window.claude.use('artifact').then(function(a){
+      if (!a) return useLocal();
+      artifact = a; mode = 'artifact'; if (dirty) save();
+    }, useLocal);
+  } else useLocal();
+})();
+</script>
+</body>
+</html>
